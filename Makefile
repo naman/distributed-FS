@@ -13,6 +13,9 @@ all: ${PROGS}
 ${PROGS} : % : %.o Makefile
 	${CC} $< -o $@ mkfsc.c
 
+libmfs: mkfsc.o
+	${CC} mkfsc.o -o libmfs
+
 clean:
 	rm -f ${PROGS} ${OBJS}
 
