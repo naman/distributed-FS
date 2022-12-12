@@ -46,11 +46,13 @@ int main(int argc, char*argv){
 	
 	//search for inode of interest.
 	
-	int inode_of_interest = 0;
+	int inode_of_interest = 4;
 	
 	int get_zero = get_bit(inode_bitmapptr, inode_of_interest);
 	int get_one = get_bit(inode_bitmapptr, 1);
 	int create_type = UFS_REGULAR_FILE; 
+	int stat_command = 1;
+	int unlink = 0;
 	printf("Inode zero is %d\n",get_zero);
 	printf("Inode one is %d\n",get_one);
 	printf("inode bitmap address %d [len %d]\n", s->inode_region_addr, s->inode_region_len);
@@ -76,19 +78,46 @@ int main(int argc, char*argv){
 		//check if name is not too long. 
 		inode_t *inode_table = image + (s->inode_region_addr * UFS_BLOCK_SIZE);
 		inode_t *dir_inode = inode_table;
-		dir_ent_t *dir = image + (dir_inode->direct[0] * UFS_BLOCK_SIZE);
+		//stat command. 
+	//	if (stat_command == 1){
+	//		printf("File size is %d\n",inode_table[inode_of_interest].size);
+	//		printf("File type is %d\n",inode_table[inode_of_interest].type);
+	//		exit(0);
+	//	}
+		
+		
+		dir_ent_t *dir = image + (dir_inode[inode_of_interest].direct[0] * UFS_BLOCK_SIZE);
 
-		for (int i = 0;i<(UFS_BLOCK_SIZE/sizeof(dir_ent_t));i++){
-			if (dir[i].inum!=-1){
-				if (strcmp(dir[i].name,"f1.txt") == 0){
-					printf("File already present at inode number %d\n",i);
-					file_absent = 0;
-					inum_of_already_present_file = dir[i].inum;
-					break;
+		if (unlink == 1){
+			for (int i = 0;i<(UFS_BLOCK_SIZE/sizeof(dir_ent_t));i++){
+				if (dir[i].inum!=-1){
+					if (strcmp(dir[i].name,"f12.txt") == 0){
+						printf("File already present at inode number %d\n",inum_of_already_present_file);
+						dir[i].inum = -1;
+						file_absent= 0;
+						break;
+					}
+					printf("File at inode number %d is %s\n",dir[i].inum,dir[i].name);
 				}
-				printf("File at inode number %d is %s\n",dir[i].inum,dir[i].name);
+				//printf("Value of inum is %d\n",dir[i].inum);		
 			}
-			//printf("Value of inum is %d\n",dir[i].inum);		
+			if (file_absent == 1){
+				printf("File/directory to unlink is not present\n");
+			}
+		}
+		else{
+			for (int i = 0;i<(UFS_BLOCK_SIZE/sizeof(dir_ent_t));i++){
+				if (dir[i].inum!=-1){
+					if (strcmp(dir[i].name,"f12.txt") == 0){
+						file_absent = 0;
+						inum_of_already_present_file = dir[i].inum;
+						printf("File already present at inode number %d\n",inum_of_already_present_file);
+						break;
+					}
+					printf("File at inode number %d is %s\n",dir[i].inum,dir[i].name);
+				}
+				//printf("Value of inum is %d\n",dir[i].inum);		
+			}
 		}
 		if (file_absent == 1){
 			printf("File not present, need to add it to the directory\n");
@@ -106,18 +135,38 @@ int main(int argc, char*argv){
 			set_bit(inode_bitmapptr, free_inode_number);
 			for (int i = 0;i<(UFS_BLOCK_SIZE/sizeof(dir_ent_t));i++){
 				if (dir[i].inum==-1){
-					strcpy(dir[i].name,"f1.txt");
+					strcpy(dir[i].name,"f12.txt");
 					dir[i].inum = free_inode_number;
-					printf("Copying f1.txt to dirent %d\n",i);
+					printf("Copying f12.txt to dirent %d\n",i);
 					break;
 				}
 				//printf("Value of inum is %d\n",dir[i].inum);		
 			}
-			inode_t *inode_ptr_of_interest = inode_table+(free_inode_number*sizeof(inode_t));
+			inode_t *inode_ptr_of_interest = inode_table+free_inode_number;
 			inode_ptr_of_interest->type = create_type;
 			inode_ptr_of_interest->size = 0;
 			for (int i = 0;i<DIRECT_PTRS;i++){
 				inode_ptr_of_interest->direct[i] = -1;
+			}
+			if (create_type == UFS_DIRECTORY){
+				int free_data_block_number = 0;
+				uint* data_bitmapptr = (uint*)(image +(s->data_bitmap_addr*UFS_BLOCK_SIZE));
+				for (int i = 0;i<32;i++){
+					if (get_bit(data_bitmapptr,i) == 0){
+						free_data_block_number = i;
+						break;
+					}
+				}
+				printf("Free data block number is %d\n",free_data_block_number);
+				inode_ptr_of_interest->direct[0] = s->data_region_addr+free_data_block_number;
+				set_bit(data_bitmapptr, free_data_block_number);
+				//set all directories to -1.
+				inode_t *dir_inode = inode_table;
+				dir_ent_t *dir = image + (inode_ptr_of_interest->direct[0]* UFS_BLOCK_SIZE);
+				printf("Setting all directory contents to -1\n");
+				for (int i = 0;i<(UFS_BLOCK_SIZE/sizeof(dir_ent_t));i++){
+					dir[i].inum = -1;
+				}
 			}
 		}
 		//check that file does not already exist in the directory, if 
@@ -154,7 +203,7 @@ int main(int argc, char*argv){
 //	else{
 //		//check if offset and upto offset+size have valid entries.
 //		printf("Inode number of file to write to is %d\n",inum_of_already_present_file);
-//		inode_t *inode_ptr_of_interest = inode_table+(inum_of_already_present_file*sizeof(inode_t));
+//		inode_t *inode_ptr_of_interest = inode_table+inum_of_already_present_file;
 //                int file_block_to_write_to = offset_to_write_to/4096;
 //		//check if the file block is valid, if not we need to find a free block to write to. 
 //		uint* data_bitmapptr = (uint*)(image +(s->data_bitmap_addr*UFS_BLOCK_SIZE));
@@ -199,52 +248,52 @@ int main(int argc, char*argv){
 
 //	//read functionality
 //		
-	int offset_to_read_from = 100;
-	int blk_offset = (offset_to_read_from)%4096;
-	int size_to_read = 10;
-	int excess_read = 0;
-	int unaligned_write = 0; 
-	if ((blk_offset+size_to_read)>4096){
-		excess_read = (blk_offset+size_to_read)-4096;
-		unaligned_write = 1;
-	}
-	printf("Amount of excess read is %d\n",excess_read);
-	if (file_absent == 1){
-		printf("Cannot write to an absent file \n");
-	}
-	else if (size_to_read > 4096){
-		printf("Max read amount is 4096B\n");
-	}
-	
-	else{
-		//check if offset and upto offset+size have valid entries.
-		printf("Inode number of file to write to is %d\n",inum_of_already_present_file);
-		inode_t *inode_ptr_of_interest = inode_table+(inum_of_already_present_file*sizeof(inode_t));
-                int file_block_to_read_from = offset_to_read_from/4096;
-		//check if the file block is valid, if not we need to find a free block to write to. 
-		//uint* data_bitmapptr = (uint*)(image +(s->data_bitmap_addr*UFS_BLOCK_SIZE));
-		
-		if (inode_ptr_of_interest->direct[file_block_to_read_from] == -1){
-			printf("File block to read is absent\n");
-			exit(0);
-		}
-		
-		if ((offset_to_read_from+size_to_read)>inode_ptr_of_interest->size){
-			printf("Access out of bounds\n");
-			exit(0);
-		}
-		char *str2 = malloc(sizeof(char)*size_to_read); 
-		memcpy(str2,(char*)(image + (inode_ptr_of_interest->direct[file_block_to_read_from]*UFS_BLOCK_SIZE)+blk_offset),(size_to_read-excess_read));
-		
-		if (excess_read>0){
-			if (inode_ptr_of_interest->direct[file_block_to_read_from+1] == -1){
-				printf("File block to read is not fully present\n");
-			}
-			//read from the start of the next block
-			memcpy((str2+(size_to_read-excess_read)),(char*)(image + (inode_ptr_of_interest->direct[file_block_to_read_from+1]*UFS_BLOCK_SIZE)),excess_read);
-		}
-		printf("The string read is %s\n",str2);
-	}	
+//	int offset_to_read_from = 100;
+//	int blk_offset = (offset_to_read_from)%4096;
+//	int size_to_read = 10;
+//	int excess_read = 0;
+//	int unaligned_write = 0; 
+//	if ((blk_offset+size_to_read)>4096){
+//		excess_read = (blk_offset+size_to_read)-4096;
+//		unaligned_write = 1;
+//	}
+//	printf("Amount of excess read is %d\n",excess_read);
+//	if (file_absent == 1){
+//		printf("Cannot write to an absent file \n");
+//	}
+//	else if (size_to_read > 4096){
+//		printf("Max read amount is 4096B\n");
+//	}
+//	
+//	else{
+//		//check if offset and upto offset+size have valid entries.
+//		printf("Inode number of file to write to is %d\n",inum_of_already_present_file);
+//		inode_t *inode_ptr_of_interest = inode_table+inum_of_already_present_file;
+//                int file_block_to_read_from = offset_to_read_from/4096;
+//		//check if the file block is valid, if not we need to find a free block to write to. 
+//		//uint* data_bitmapptr = (uint*)(image +(s->data_bitmap_addr*UFS_BLOCK_SIZE));
+//		
+//		if (inode_ptr_of_interest->direct[file_block_to_read_from] == -1){
+//			printf("File block to read is absent\n");
+//			exit(0);
+//		}
+//		
+//		if ((offset_to_read_from+size_to_read)>inode_ptr_of_interest->size){
+//			printf("Access out of bounds\n");
+//			exit(0);
+//		}
+//		char *str2 = malloc(sizeof(char)*size_to_read); 
+//		memcpy(str2,(char*)(image + (inode_ptr_of_interest->direct[file_block_to_read_from]*UFS_BLOCK_SIZE)+blk_offset),(size_to_read-excess_read));
+//		
+//		if (excess_read>0){
+//			if (inode_ptr_of_interest->direct[file_block_to_read_from+1] == -1){
+//				printf("File block to read is not fully present\n");
+//			}
+//			//read from the start of the next block
+//			memcpy((str2+(size_to_read-excess_read)),(char*)(image + (inode_ptr_of_interest->direct[file_block_to_read_from+1]*UFS_BLOCK_SIZE)),excess_read);
+//		}
+//		printf("The string read is %s\n",str2);
+//	}	
 
 	
 	//don't do this.
