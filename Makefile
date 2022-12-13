@@ -1,8 +1,8 @@
 CC     := gcc
-CFLAGS := -Wall -Werror 
+CFLAGS := -Wall 
 
 SRCS   := mfscli.c \
-	mfsserver.c 
+	server-fs.c 
 
 OBJS   := ${SRCS:c=o}
 PROGS  := ${SRCS:.c=}
@@ -18,6 +18,12 @@ libmfs: libmfs.so
 
 mfscli: mfscli.o libmfs
 	${CC} mfscli.o -o mfscli -L. -lmfs
+
+server-fs: server-fs.o
+	${CC} server-fs.o -o server-fs 
+
+mkfs: mkfs.o
+	${CC} mkfs.o -o mkfs
 
 clean:
 	rm -f ${PROGS} ${OBJS} libmfs.so udp.o libmfs
