@@ -193,6 +193,8 @@ int Server_Unlink(void *image, uint* inode_bitmapptr,  int pinum, char *name){
 		//printf("Value of inum is %d\n",dir[i].inum);		
 	}
 	
+	int rc = msync(s, sizeof(super_t), MS_SYNC);
+	assert(rc>-1);
 	return 0;
 }	
 
