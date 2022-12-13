@@ -11,6 +11,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <netinet/in.h>
+#include <sys/socket.h>
+
 #include "ufs.h"
 #include "mfs.h"
 
@@ -332,11 +335,57 @@ int Server_Shutdown(super_t *s, int fd){
 
 }
 int main(int argc, char*argv){
+
+	// take the hostname and port as arguments
+	if (argc != 3) {
+		printf("Usage: ./server <hostname> <port>\n");
+		exit(1);
+	}
+
+
+	char* hostname = argv[1];
+	int port = atoi(argv[2]);
+
+	// create a socket
+	int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+	assert(sockfd > -1);
+
+
+	// bind the socket to an IP address and port
+	struct sockaddr_in saddr;
+	saddr.sin_family = AF_INET;
+	saddr.sin_port = htons(port);
+	saddr.sin_addr.s_addr = INADDR_ANY;
+	int rc = bind(sockfd, (struct sockaddr *) &saddr, sizeof(saddr));
+	assert(rc > -1);
+
+	// listen for incoming connections
+	rc = listen(sockfd, 10);
+	assert(rc > -1);
+
+	// accept a connection
+	struct sockaddr_in caddr;
+	socklen_t caddr_len = sizeof(caddr);
+	int connfd = accept(sockfd, (struct sockaddr *) &caddr, &caddr_len);
+	assert(connfd > -1);
+
+	// read the request
+	char buffer[1024];
+	rc = read(connfd, buffer, 1024);
+	assert(rc > -1);
+
+	// parse the request
+	char *method, *path, *protocol;
+	method = strtok(buffer, " ");
+	path = strtok(NULL, " ");
+	protocol = strtok(NULL, "\r");
+
+	// open the file
 	int fd = open("test.img",O_RDWR);
 	assert(fd > -1);
 
 	struct stat sbuf;
-	int rc = fstat(fd, &sbuf);
+	rc = fstat(fd, &sbuf);
 	assert(rc > -1);
 
 	int image_size = (int) sbuf.st_size;
