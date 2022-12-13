@@ -53,6 +53,7 @@ dkms.conf
 
 libmfs
 mkfs
-server-fs
+server
 *.img
- 
+mfscli
+*.log
