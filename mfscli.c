@@ -1,3 +1,4 @@
+// Version 3
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
@@ -139,19 +140,15 @@ int perform_insert(const char *fromPath, char *toPath) {
 
     sprintf(logBuffer, "Trying to create new file %s in %s", fileName, dirPath); VERBOSE();
 
-    // int newInode = MFS_Creat(dirInode, UFS_REGULAR_FILE, fileName);
-
-    // if (newInode == -1) {
-    //     sprintf(logBuffer, "Unable to create new file %s in %s", fileName, dirPath); ERR();
-    // }
-
     int rc = MFS_Creat(dirInode, UFS_REGULAR_FILE, fileName);
     if (rc == -1) {
-         sprintf(logBuffer, "Unable to create new file %s in %s", fileName, dirPath); ERR();
+        sprintf(logBuffer, "Unable to create new file %s in %s", fileName, dirPath); ERR();
     }
-    
-    int newInode = MFS_Lookup(dirInode, fileName);
 
+    int newInode = MFS_Lookup(dirInode, fileName);
+    if (newInode == -1) {
+        sprintf(logBuffer, "Unable to fetch newly created inode number even though MFS_Creat was successful"); ERR();
+    }
 
     sprintf(logBuffer, "Created new file with inode number %d", newInode); INFO();
 
@@ -208,20 +205,21 @@ int perform_cat(char *path) {
     
     sprintf(logBuffer, "Filesize=%d. Starting read", sz); INFO();
 
-    for(int i = 0; i < sz; sz += MFS_RW_BUFFER_SIZE) {
-        int offset = i;
-        int count = MFS_RW_BUFFER_SIZE;
-        if (offset + count > sz) count = sz - offset; // todo: verify this. perhaps off by 1
+    int offset = 0;
+    while (offset < sz) {
+        int count = sz - offset;
+        if (count > MFS_RW_BUFFER_SIZE) count = MFS_RW_BUFFER_SIZE;
 
         sprintf(logBuffer, "Trying to read %d bytes from offset %d foi inum=%d", count, offset, fileInode); VERBOSE();
-
         int rc = MFS_Read(fileInode, output + offset, offset, count);
         if (rc == -1) {
             sprintf(logBuffer, "MFS_Read failed for inum=%d offset=%d count=%d", fileInode, offset, count); ERR();
         }
+
+        offset += count;
     }
 
-    sprintf(logBuffer, "File contents (from next line): \n%s", output);
+    sprintf(logBuffer, "File contents (from next line): \n%s\n", output);
     INFO();
 
     free(output);
@@ -247,7 +245,16 @@ int perform_mkdir(char *path) {
         }
 
         sprintf(logBuffer, "calling MFS_Creat for %s in parent directory (inode=%d)", dirname, dirInode); VERBOSE();
-        int newInode = MFS_Creat(dirInode, UFS_DIRECTORY, dirname);
+        int rc = MFS_Creat(dirInode, UFS_DIRECTORY, dirname);
+        if (rc == -1) {
+            sprintf(logBuffer, "Unable to create directory %s", dirname); ERR();
+        }
+
+        int newInode = MFS_Lookup(dirInode, dirname);
+        if (newInode == -1) {
+            sprintf(logBuffer, "Unable to fetch newly created directory inode even though MFS_Creat was successful"); ERR();
+        }
+
         dirInode = newInode;
         
         if (dirInode == -1) {

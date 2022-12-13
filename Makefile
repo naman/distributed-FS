@@ -10,14 +10,14 @@ PROGS  := ${SRCS:.c=}
 .PHONY: all
 all: ${PROGS}
 
-${PROGS} : % : %.o Makefile
-	${CC} $< -o $@ mkfsc.c
+libmfs.so: libmfs.o udp.o
+	${CC} -shared -Wl,-soname,libmfs.so -o libmfs.so libmfs.o udp.o -lc
 
-libmfs: mkfsc.o
-	${CC} mkfsc.o -o libmfs
+libmfs: libmfs.so
+	ln -sf libmfs.so libmfs
+
+mfscli: mfscli.o libmfs
+	${CC} mfscli.o -o mfscli -L. -lmfs
 
 clean:
-	rm -f ${PROGS} ${OBJS}
-
-%.o: %.c Makefile
-	${CC} ${CFLAGS} -c $<
+	rm -f ${PROGS} ${OBJS} libmfs.so udp.o libmfs
