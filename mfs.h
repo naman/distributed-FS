@@ -48,12 +48,10 @@ typedef struct __MFS_Message_t
 // helper functions
 typedef struct sockaddr_in sockaddr_in;
 
-int send_message(int sd, sockaddr_in *addrSnd, int type, char *buffer, int size);
-__MFS_Message_t *recv_message(int sd, sockaddr_in *addrSnd);
-
+int send_message(int sd, struct sockaddr_in *addr, __MFS_Message_t *msg);
 
 // store the connection sd in a global variable
-int client_connection = -1;
+extern int client_connection;
 
 // store sockaddr_in in a global variable
 sockaddr_in* addrSnd;

@@ -401,12 +401,21 @@ int main(int argc, char *argv[])
 
 	int sd = UDP_Open(port);
 	assert(sd > -1);
+	int fd = open("test.img", O_RDWR);
+	assert(fd > -1);
+	
+	struct stat sbuf;
+	int rc = fstat(fd, &sbuf);
+	assert(rc > -1);
+
+    	int image_size = (int) sbuf.st_size;	
+	void *image = mmap(NULL, image_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	assert(image != MAP_FAILED);
+	super_t *s = (super_t *)image;
+	uint *inode_bitmapptr = (uint *)(image + (s->inode_bitmap_addr * UFS_BLOCK_SIZE));
 
 	struct sockaddr_in *addr;
 
-	// empty fd
-
-	int fd = -1;
 
 	// loop over reading requests and processing them
 	while (1)
@@ -421,15 +430,15 @@ int main(int argc, char *argv[])
 			case MFS_INIT:
 			{
 				printf("server:: init request...\n");
-				fd = Server_Init(argv[2]);
-				send_message(sd, addr, MFS_INIT, NULL, 0);
+				recvMsg->status = Server_Init(argv[2]);
+				send_message(sd, addr, recvMsg);
 				break;
 			}
 			case MFS_LOOKUP:
 			{
-				 recvMsg->status = Server_Lookup(image, inode_bitmapptr, recvMsg->inum, recvMsg->name);
-				 //send back the message with the return status set with the inode number.
-				 send_message(sd, addr, recvMsg);
+				recvMsg->status = Server_Lookup(image, inode_bitmapptr, recvMsg->inum, recvMsg->name);
+				//send back the message with the return status set with the inode number.
+				send_message(sd, addr, recvMsg);
 				break;
 			}
 			case MFS_STAT:
@@ -471,93 +480,6 @@ int main(int argc, char *argv[])
 		}
 
 		// check if the request is valid
-
-		struct stat sbuf;
-		int rc = fstat(fd, &sbuf);
-		assert(rc > -1);
-
-		int image_size = (int)sbuf.st_size;
-
-		void *image = mmap(NULL, image_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-		assert(image != MAP_FAILED);
-		super_t *s = (super_t *)image;
-		uint *inode_bitmapptr = (uint *)(image + (s->inode_bitmap_addr * UFS_BLOCK_SIZE));
-
-		// search for inode of interest.
-
-		int inode_of_interest = 4;
-
-		int get_zero = get_bit(inode_bitmapptr, inode_of_interest);
-		int get_one = get_bit(inode_bitmapptr, 1);
-		int create_type = UFS_REGULAR_FILE;
-		int stat_command = 1;
-		int unlink = 0;
-		printf("Inode zero is %d\n", get_zero);
-		printf("Inode one is %d\n", get_one);
-		printf("inode bitmap address %d [len %d]\n", s->inode_region_addr, s->inode_region_len);
-		printf("data bitmap address %d [len %d]\n", s->data_region_addr, s->data_region_len);
-		inode_t *inode_table = image + (s->inode_region_addr * UFS_BLOCK_SIZE);
-		inode_t *root_inode = inode_table;
-		printf("\nroot type:%d root size:%d\n", root_inode->type, root_inode->size);
-		printf("direct pointers[0]:%d [1]:%d\n", root_inode->direct[0], root_inode->direct[1]);
-
-		dir_ent_t *root_dir = image + (root_inode->direct[0] * UFS_BLOCK_SIZE);
-		printf("\nroot dir entries\n%d %s\n", root_dir[0].inum, root_dir[0].name);
-		printf("%d %s\n", root_dir[1].inum, root_dir[1].name);
-
-		printf("%d %s\n", root_dir[2].inum, root_dir[2].name);
-		// try to create /home/f1.txt
-		int inum_of_already_present_file = 0;
-		int file_absent = 1;
-		if (get_zero == 1)
-		{
-			// check if name is not too long.
-			inode_t *inode_table = image + (s->inode_region_addr * UFS_BLOCK_SIZE);
-			inode_t *dir_inode = inode_table;
-			// stat command.
-			//	if (stat_command == 1){
-			//		printf("File size is %d\n",inode_table[inode_of_interest].size);
-			//		printf("File type is %d\n",inode_table[inode_of_interest].type);
-			//		exit(0);
-			//	}
-
-			int lookup_value = Server_Lookup(image, inode_bitmapptr, 2, "f10.txt");
-			printf("Lookup value is %d\n", lookup_value);
-			MFS_Stat_t *temp = malloc(sizeof(MFS_Stat_t));
-			int stat_value = Server_Stat(image, inode_bitmapptr, 15, temp);
-			if (stat_value != -1)
-			{
-				printf("Stat value for inum 9 is %d and %d\n", temp->type, temp->size);
-			}
-			else
-			{
-				printf("File does not exist\n");
-			}
-			int creat = Server_Create(image, inode_bitmapptr, 4, 1, "f19.txt");
-			if (creat != -1)
-				printf("Successfully created file");
-			dir_ent_t *dir = image + (dir_inode[inode_of_interest].direct[0] * UFS_BLOCK_SIZE);
-			char *str1 = "Nahi Nahi";
-			char *str2 = malloc(strlen(str1) + 1);
-			strcpy(str2, str1);
-			//	int write = Server_Write(image, inode_bitmapptr, 9, str2, 250, strlen(str2)+1);
-			//      	if (write != -1){
-			//		printf("Successfully wrote to file\n");
-			//	}
-			char *str3 = malloc(strlen(str1) + 1);
-			int read = Server_Read(image, inode_bitmapptr, 9, str3, 4094, strlen(str2) + 1);
-			if (read != -1)
-			{
-				printf("Successfully read from file %s\n", str3);
-			}
-			Server_Shutdown(s, fd);
-
-			// check that file does not already exist in the directory, if
-			// it does, nothing to do.
-			// find a free inode number.
-		}
-		// lookup is similar to create, except that it returns the inode number if name is present in the directory.
-		// if not, it returns -1.
 
 		// force change
 		rc = msync(s, sizeof(super_t), MS_SYNC);

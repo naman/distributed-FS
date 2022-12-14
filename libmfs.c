@@ -4,9 +4,11 @@
 #include <stdlib.h>
 #include <time.h>
 
+int client_connection = -1;
+
 int send_message(int sd, struct sockaddr_in *addr, __MFS_Message_t *msg)
 {
-    printf("sending type: %d, size: %d", type, size);
+    //printf("sending type: %d, size: %d", type, size);
     int rc = UDP_Write(sd, addr, (char *)msg, sizeof(__MFS_Message_t));
     if (rc < 0)
     {
@@ -36,7 +38,7 @@ __MFS_Message_t *recv_message(int sd, struct sockaddr_in *addr)
 int send_api_message(int sd, struct sockaddr_in *addr, __MFS_Message_t *msg)
 {
     // __MFS_Message_t *msg = send_message(sd, addr, type, buffer, size);
-    send_message(sd, addr, type, buffer, size);
+    send_message(sd, addr, msg);
 
     __MFS_Message_t *recvMsg = recv_message(sd, addr);
 
@@ -105,7 +107,7 @@ int MFS_Stat(int inum, MFS_Stat_t *m)
     // MFS_Stat() returns some information about the file specified by inum. Upon success, return 0, otherwise -1. The exact info returned is defined by MFS_Stat_t. Failure modes: inum does not exist. File and directory sizes are described below.
     __MFS_Message_t *msg = (__MFS_Message_t *)malloc(sizeof(__MFS_Message_t));
     msg->type =  MFS_STAT;
-    msg->inum = pinum;
+    msg->inum = inum;
     int rc = send_api_message(client_connection, addrSnd, msg);
     return rc;
 }
