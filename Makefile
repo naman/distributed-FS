@@ -12,7 +12,7 @@ PROGS  := ${SRCS:.c=}
 all: ${PROGS}
 
 mfs: libmfs.c mfs.h
-	${CC} -fPIC -c libmfs.c
+	${CC} -fPIC -c libmfs.c udp.c
 
 libmfs.so: mfs
 	${CC} -shared -Wl,-soname,libmfs.so -o libmfs.so libmfs.o udp.o -lc
@@ -20,8 +20,8 @@ libmfs.so: mfs
 libmfs: libmfs.so
 	ln -sf libmfs.so libmfs.o
 
-mfscli: mfscli.o libmfs
-	${CC} mfscli.o -o mfscli -L. -lmfs
+mfscli: mfscli.o udp.o libmfs
+	${CC} mfscli.o -o mfscli -L. -lmfs udp.o
 
 server: server.o udp.o
 	${CC} server.o udp.o -o server  -L. -lmfs

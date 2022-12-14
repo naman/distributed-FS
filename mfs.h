@@ -39,7 +39,6 @@ typedef struct __MFS_Message_t
 // helper functions
 typedef struct sockaddr_in sockaddr_in;
 
-int init_connection(char *hostname, int port);
 int send_message(int sd, sockaddr_in *addrSnd, int type, char *buffer, int size);
 __MFS_Message_t *recv_message(int sd, sockaddr_in *addrSnd);
 
@@ -48,7 +47,7 @@ __MFS_Message_t *recv_message(int sd, sockaddr_in *addrSnd);
 int client_connection = -1;
 
 // store sockaddr_in in a global variable
-struct sockaddr_in addrSnd = {0};
+sockaddr_in* addrSnd;
 
 int MFS_Init(char *hostname, int port);
 int MFS_Lookup(int pinum, char *name);
