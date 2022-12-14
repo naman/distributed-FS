@@ -37,21 +37,10 @@ int send_api_message(int sd, struct sockaddr_in *addr, __MFS_Message_t *msg)
     int rc = send_message(sd, addr, msg);
     // assert(rc == 0);
 
-    __MFS_Message_t *recvMsg = (__MFS_Message_t *)malloc(sizeof(__MFS_Message_t));
-    rc = recv_message(sd, addr, recvMsg);
+    rc = recv_message(sd, addr, msg);
     // assert(rc == 0);
 
-    // acknoledgement
-    // correct operation
-    if (recvMsg->status != -1 && recvMsg->type == msg->type)
-    {
-        return recvMsg->status;
-    }
-    else
-    {
-        return -1;
-    }
-    free(recvMsg);
+    return msg->status;
 }
 
 int MFS_Init(char *hostname, int port)
@@ -100,6 +89,7 @@ int MFS_Lookup(int pinum, char *name)
     msg->inum = pinum;
     strcpy(msg->name, name);
     int rc = send_api_message(client_connection, addrSnd, msg);
+    free(msg);
     return rc;
 }
 
@@ -110,6 +100,13 @@ int MFS_Stat(int inum, MFS_Stat_t *m)
     msg->type = MFS_STAT;
     msg->inum = inum;
     int rc = send_api_message(client_connection, addrSnd, msg);
+    if (rc == -1)
+    {
+        return -1;
+    }
+    m->type = msg->m.type;
+    m->size = msg->m.size;
+    free(msg);
     return rc;
 }
 
@@ -122,6 +119,7 @@ int MFS_Write(int inum, char *buffer, int offset, int nbytes)
     memcpy(msg->buffer, buffer, nbytes);
     msg->offset = offset;
     int rc = send_api_message(client_connection, addrSnd, msg);
+    free(msg);
     return rc;
 }
 
