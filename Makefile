@@ -14,7 +14,7 @@ all: ${PROGS}
 mfs: libmfs.c mfs.h
 	${CC} -fPIC -c libmfs.c
 
-libmfs.so: libmfs.o udp.o
+libmfs.so: mfs
 	${CC} -shared -Wl,-soname,libmfs.so -o libmfs.so libmfs.o udp.o -lc
 
 libmfs: libmfs.so
@@ -23,11 +23,14 @@ libmfs: libmfs.so
 mfscli: mfscli.o libmfs
 	${CC} mfscli.o -o mfscli -L. -lmfs
 
-server: server.o
-	${CC} server.o -o server
+server: server.o udp.o
+	${CC} server.o udp.o -o server  -L. -lmfs
+
+# %.o: %.c Makefile
+# 	${CC} ${CFLAGS} -c $<
 
 mkfs: mkfs.o
 	${CC} mkfs.o -o mkfs
 
 clean:
-	rm -f ${PROGS} ${OBJS} libmfs mkfs *.o *.so *.log server mfscli
+	rm -f ${PROGS} ${OBJS} libmfs mkfs *.o *.so *.log mfscli
