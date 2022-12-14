@@ -452,7 +452,7 @@ int main(int argc, char *argv[])
 			}
 			case MFS_CREAT:
 			{
-				recvMsg->status = Server_Create(image, inode_bitmapptr, recvMsg->inum, recvMsg->type, recvMsg->name); 
+				recvMsg->status = Server_Create(image, inode_bitmapptr, recvMsg->inum, recvMsg->file_type, recvMsg->name); 
 				send_message(sd, addr, recvMsg);
 				break;
 			}
