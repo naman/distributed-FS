@@ -49,6 +49,7 @@ typedef struct __MFS_Message_t
 typedef struct sockaddr_in sockaddr_in;
 
 int send_message(int sd, struct sockaddr_in *addr, __MFS_Message_t *msg);
+int recv_message(int sd, struct sockaddr_in *addr, __MFS_Message_t *msg);
 
 // store the connection sd in a global variable
 extern int client_connection;

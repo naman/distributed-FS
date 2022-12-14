@@ -66,7 +66,7 @@ int Server_Create(void *image, uint *inode_bitmapptr, int pinum, int type, char 
 	{
 		printf("File not present, need to add it to the directory\n");
 		// find empty directory entry for file.
-		int empty_dir_entry;
+		// int empty_dir_entry;
 
 		int free_inode_number = 0;
 		for (int i = 0; i < 1000; i++)
@@ -113,7 +113,7 @@ int Server_Create(void *image, uint *inode_bitmapptr, int pinum, int type, char 
 			inode_ptr_of_interest->direct[0] = s->data_region_addr + free_data_block_number;
 			set_bit(data_bitmapptr, free_data_block_number);
 			// set all directories to -1.
-			inode_t *dir_inode = inode_table;
+			// inode_t *dir_inode = inode_table;
 			dir_ent_t *dir = image + (inode_ptr_of_interest->direct[0] * UFS_BLOCK_SIZE);
 			printf("Setting all directory contents to -1\n");
 			for (int i = 0; i < (UFS_BLOCK_SIZE / sizeof(dir_ent_t)); i++)
@@ -196,8 +196,8 @@ int Server_Unlink(void *image, uint *inode_bitmapptr, int pinum, char *name)
 				if (inode_table[dir[i].inum].type == 0)
 				{
 					dir_ent_t *dir1 = image + (inode_table[dir[i].inum].direct[0] * UFS_BLOCK_SIZE);
-					int file_absent = 1;
-					int inum_of_already_present_file;
+					// int file_absent = 1;
+					// int inum_of_already_present_file;
 					// cannot unlink a non-empty directory
 					for (int i = 0; i < (UFS_BLOCK_SIZE / sizeof(dir_ent_t)); i++)
 					{
@@ -364,6 +364,7 @@ int Server_Read(void *image, uint *inode_bitmapptr, int inum, char *buffer, int 
 			memcpy((buffer + (size_to_read - excess_read)), (char *)(image + (inode_ptr_of_interest->direct[file_block_to_read_from + 1] * UFS_BLOCK_SIZE)), excess_read);
 		}
 	}
+	return 0;
 }
 
 int Server_Shutdown(super_t *s, int fd)
@@ -372,6 +373,7 @@ int Server_Shutdown(super_t *s, int fd)
 	assert(rc > -1);
 
 	close(fd);
+	return 0;
 }
 
 int Server_Init(char *filename)
@@ -401,89 +403,101 @@ int main(int argc, char *argv[])
 
 	int sd = UDP_Open(port);
 	assert(sd > -1);
-	int fd = open("test.img", O_RDWR);
-	assert(fd > -1);
-	
-	struct stat sbuf;
-	int rc = fstat(fd, &sbuf);
-	assert(rc > -1);
 
-    	int image_size = (int) sbuf.st_size;	
-	void *image = mmap(NULL, image_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-	assert(image != MAP_FAILED);
-	super_t *s = (super_t *)image;
-	uint *inode_bitmapptr = (uint *)(image + (s->inode_bitmap_addr * UFS_BLOCK_SIZE));
+	struct sockaddr_in *addr = (struct sockaddr_in *)malloc(sizeof(struct sockaddr_in));
 
-	struct sockaddr_in *addr;
-
+	int fd = -1;
+	int image_size = 0;
+	void *image = NULL;
+	super_t *s = NULL;
+	uint *inode_bitmapptr = NULL;
 
 	// loop over reading requests and processing them
 	while (1)
 	{
 		printf("server:: waiting...\n");
 
-		__MFS_Message_t *recvMsg = recv_message(sd, addr);
+		__MFS_Message_t *recvMsg = (__MFS_Message_t *)malloc(sizeof(__MFS_Message_t));
+
+		int rc = recv_message(sd, addr, recvMsg);
+		// assert(rc == 0);
+
+		printf("server:: got message of type %d\n", recvMsg->type);
 		// switch on the type of the message
 
 		switch (recvMsg->type)
 		{
-			case MFS_INIT:
-			{
-				printf("server:: init request...\n");
-				recvMsg->status = Server_Init(argv[2]);
-				send_message(sd, addr, recvMsg);
-				break;
-			}
-			case MFS_LOOKUP:
-			{
-				recvMsg->status = Server_Lookup(image, inode_bitmapptr, recvMsg->inum, recvMsg->name);
-				//send back the message with the return status set with the inode number.
-				send_message(sd, addr, recvMsg);
-				break;
-			}
-			case MFS_STAT:
-			{
-				 recvMsg->status = Server_Stat(image, inode_bitmapptr, recvMsg->inum, &(recvMsg->m)); 
-				 send_message(sd, addr, recvMsg);
-				break;
-			}
-			case MFS_WRITE:
-			{
-				recvMsg->status = Server_Write(image, inode_bitmapptr, recvMsg->inum, recvMsg->buffer, recvMsg->offset, recvMsg->nbytes); 
-				send_message(sd, addr, recvMsg);
-				break;
-			}
-			case MFS_READ:
-			{
-				recvMsg->status = Server_Read(image, inode_bitmapptr, recvMsg->inum, recvMsg->buffer, recvMsg->offset, recvMsg->nbytes); 
-				send_message(sd, addr, recvMsg);
-				break;
-			}
-			case MFS_CREAT:
-			{
-				recvMsg->status = Server_Create(image, inode_bitmapptr, recvMsg->inum, recvMsg->file_type, recvMsg->name); 
-				send_message(sd, addr, recvMsg);
-				break;
-			}
-			case MFS_UNLINK:
-			{
-				recvMsg->status = Server_Unlink(image, inode_bitmapptr, recvMsg->inum, recvMsg->name); 
-				send_message(sd, addr, recvMsg);
-				break;
-			}
-			case MFS_SHUTDOWN:
-			{
-				recvMsg->status = Server_Shutdown(image, inode_bitmapptr); 
-				send_message(sd, addr, recvMsg);
-				break;
-			}
+		case MFS_INIT:
+		{
+			printf("server:: init request...\n");
+			fd = Server_Init(argv[2]);
+
+			struct stat sbuf;
+			rc = fstat(fd, &sbuf);
+			assert(rc > -1);
+
+			image_size = (int)sbuf.st_size;
+			image = mmap(NULL, image_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+			assert(image != MAP_FAILED);
+			s = (super_t *)image;
+			inode_bitmapptr = (uint *)(image + (s->inode_bitmap_addr * UFS_BLOCK_SIZE));
+
+			recvMsg->status = 0;
+			send_message(sd, addr, recvMsg);
+
+			break;
+		}
+		case MFS_LOOKUP:
+		{
+			recvMsg->status = Server_Lookup(image, inode_bitmapptr, recvMsg->inum, recvMsg->name);
+			// send back the message with the return status set with the inode number.
+			send_message(sd, addr, recvMsg);
+			break;
+		}
+		case MFS_STAT:
+		{
+			recvMsg->status = Server_Stat(image, inode_bitmapptr, recvMsg->inum, &(recvMsg->m));
+			send_message(sd, addr, recvMsg);
+			break;
+		}
+		case MFS_WRITE:
+		{
+			recvMsg->status = Server_Write(image, inode_bitmapptr, recvMsg->inum, recvMsg->buffer, recvMsg->offset, recvMsg->nbytes);
+			send_message(sd, addr, recvMsg);
+			break;
+		}
+		case MFS_READ:
+		{
+			recvMsg->status = Server_Read(image, inode_bitmapptr, recvMsg->inum, recvMsg->buffer, recvMsg->offset, recvMsg->nbytes);
+			send_message(sd, addr, recvMsg);
+			break;
+		}
+		case MFS_CREAT:
+		{
+			recvMsg->status = Server_Create(image, inode_bitmapptr, recvMsg->inum, recvMsg->file_type, recvMsg->name);
+			send_message(sd, addr, recvMsg);
+			break;
+		}
+		case MFS_UNLINK:
+		{
+			recvMsg->status = Server_Unlink(image, inode_bitmapptr, recvMsg->inum, recvMsg->name);
+			send_message(sd, addr, recvMsg);
+			break;
+		}
+		case MFS_SHUTDOWN:
+		{
+			recvMsg->status = Server_Shutdown(s, fd);
+			send_message(sd, addr, recvMsg);
+			break;
+		}
 		}
 
+		free(recvMsg);
 		// check if the request is valid
 
 		// force change
-		rc = msync(s, sizeof(super_t), MS_SYNC);
-		assert(rc > -1);
+		// rc = msync(s, sizeof(super_t), MS_SYNC);
+		// assert(rc > -1);
 
 		close(fd);
 	}
