@@ -418,23 +418,56 @@ int main(int argc, char *argv[])
 
 		switch (recvMsg->type)
 		{
-		case MFS_INIT:
-		{
-			printf("server:: init request...\n");
-			fd = Server_Init(argv[2]);
-			send_message(sd, addr, MFS_INIT, NULL, 0);
-			break;
-		}
-		case MFS_LOOKUP:
-		{
-			// printf("server:: lookup request...\n");
-			// __MFS_Lookup_t *lookup = (__MFS_Lookup_t *)recvMsg;
-			// __MFS_Lookup_Reply_t *reply = (__MFS_Lookup_Reply_t *)malloc(sizeof(__MFS_Lookup_Reply_t));
-			// reply->type = MFS_LOOKUP_REPLY;
-			// reply->inum = Server_Lookup(image, inode_bitmapptr, lookup->inum, lookup->name);
-			// send_message(sd, addr, reply);
-			break;
-		}
+			case MFS_INIT:
+			{
+				printf("server:: init request...\n");
+				fd = Server_Init(argv[2]);
+				send_message(sd, addr, MFS_INIT, NULL, 0);
+				break;
+			}
+			case MFS_LOOKUP:
+			{
+				 recvMsg->status = Server_Lookup(image, inode_bitmapptr, recvMsg->inum, recvMsg->name);
+				 //send back the message with the return status set with the inode number.
+				 send_message(sd, addr, recvMsg);
+				break;
+			}
+			case MFS_STAT:
+			{
+				 recvMsg->status = Server_Stat(image, inode_bitmapptr, recvMsg->inum, &(recvMsg->m)); 
+				 send_message(sd, addr, recvMsg);
+				break;
+			}
+			case MFS_WRITE:
+			{
+				recvMsg->status = Server_Write(image, inode_bitmapptr, recvMsg->inum, recvMsg->buffer, recvMsg->offset, recvMsg->nbytes); 
+				send_message(sd, addr, recvMsg);
+				break;
+			}
+			case MFS_READ:
+			{
+				recvMsg->status = Server_Read(image, inode_bitmapptr, recvMsg->inum, recvMsg->buffer, recvMsg->offset, recvMsg->nbytes); 
+				send_message(sd, addr, recvMsg);
+				break;
+			}
+			case MFS_CREAT:
+			{
+				recvMsg->status = Server_Create(image, inode_bitmapptr, recvMsg->inum, recvMsg->type, recvMsg->name); 
+				send_message(sd, addr, recvMsg);
+				break;
+			}
+			case MFS_UNLINK:
+			{
+				recvMsg->status = Server_Unlink(image, inode_bitmapptr, recvMsg->inum, recvMsg->name); 
+				send_message(sd, addr, recvMsg);
+				break;
+			}
+			case MFS_SHUTDOWN:
+			{
+				recvMsg->status = Server_Shutdown(image, inode_bitmapptr); 
+				send_message(sd, addr, recvMsg);
+				break;
+			}
 		}
 
 		// check if the request is valid

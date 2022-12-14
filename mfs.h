@@ -33,6 +33,14 @@ typedef struct __MFS_Message_t
     int type;
     int size;
     int status; // for return values
+    //space for all possible arguments
+    //read what is necessary at the server end depending
+    //on request type
+    int inum;
+    char name[30];
+    MFS_Stat_t m;
+    int offset;
+    int nbytes;
     char buffer[MFS_BUFFER_SIZE];
 } __MFS_Message_t;
 
