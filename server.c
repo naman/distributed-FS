@@ -45,6 +45,8 @@ int Server_Create(void *image, uint *inode_bitmapptr, int pinum, int type, char 
 	super_t *s = (super_t *)image;
 	inode_t *inode_table = image + (s->inode_region_addr * UFS_BLOCK_SIZE);
 	inode_t *dir_inode = inode_table;
+	if (dir_inode[pinum].type != MFS_DIRECTORY)
+	       return -1;	
 	dir_ent_t *dir = image + (dir_inode[pinum].direct[0] * UFS_BLOCK_SIZE);
 	int file_absent = 1;
 	int inum_of_already_present_file;
@@ -69,14 +71,18 @@ int Server_Create(void *image, uint *inode_bitmapptr, int pinum, int type, char 
 		// int empty_dir_entry;
 
 		int free_inode_number = 0;
-		for (int i = 0; i < 1000; i++)
+		int found_free_inode = 0;
+		for (int i = 0; i < 32; i++)
 		{
 			if (get_bit(inode_bitmapptr, i) == 0)
 			{
+				found_free_inode = 1;
 				free_inode_number = i;
 				break;
 			}
 		}
+	//	if (!found_free_inode)
+	//		return -1;
 		// printf("Free inode number is %d\n", free_inode_number);
 		set_bit(inode_bitmapptr, free_inode_number);
 		for (int i = 0; i < (UFS_BLOCK_SIZE / sizeof(dir_ent_t)); i++)
@@ -101,14 +107,18 @@ int Server_Create(void *image, uint *inode_bitmapptr, int pinum, int type, char 
 		{
 			int free_data_block_number = 0;
 			uint *data_bitmapptr = (uint *)(image + (s->data_bitmap_addr * UFS_BLOCK_SIZE));
+			int found_free_datablk = 0;
 			for (int i = 0; i < 32; i++)
 			{
 				if (get_bit(data_bitmapptr, i) == 0)
 				{
+					found_free_datablk = 1;
 					free_data_block_number = i;
 					break;
 				}
 			}
+		//	if (!found_free_datablk)
+		//		return -1;
 			// printf("Free data block number is %d\n", free_data_block_number);
 			inode_ptr_of_interest->direct[0] = s->data_region_addr + free_data_block_number;
 			set_bit(data_bitmapptr, free_data_block_number);
@@ -120,6 +130,10 @@ int Server_Create(void *image, uint *inode_bitmapptr, int pinum, int type, char 
 			{
 				dir[i].inum = -1;
 			}
+			dir[0].inum = free_inode_number;
+			strcpy(dir[0].name,".");
+			dir[1].inum = pinum;
+			strcpy(dir[1].name,"..");
 		}
 	}
 	int rc;
@@ -136,6 +150,8 @@ int Server_Lookup(void *image, uint *inode_bitmapptr, int pinum, char *name)
 	super_t *s = (super_t *)image;
 	inode_t *inode_table = image + (s->inode_region_addr * UFS_BLOCK_SIZE);
 	inode_t *dir_inode = inode_table;
+	if (dir_inode[pinum].type != MFS_DIRECTORY)
+	       return -1;	
 	dir_ent_t *dir = image + (dir_inode[pinum].direct[0] * UFS_BLOCK_SIZE);
 	int file_absent = 1;
 	int inum_of_already_present_file;
@@ -201,10 +217,15 @@ int Server_Unlink(void *image, uint *inode_bitmapptr, int pinum, char *name)
 					// cannot unlink a non-empty directory
 					for (int i = 0; i < (UFS_BLOCK_SIZE / sizeof(dir_ent_t)); i++)
 					{
-						if (dir1[i].inum != -1)
+						if (strcmp(dir[i].name,".")==0)
+							continue;
+						if (strcmp(dir[i].name,"..")==0)
+							continue;
+						if ((dir1[i].inum != -1))
 						{
 							return -1;
 						}
+							
 					}
 					// check that the directory is empty.
 					// if it is not, return -1.
@@ -235,7 +256,7 @@ int Server_Write(void *image, uint *inode_bitmapptr, int inum, char *buffer, int
 		excess_write = (blk_offset + size_to_write) - 4096;
 		unaligned_write = 1;
 	}
-	// printf("Amount of excess write is %d\n", excess_write);
+	//printf("Amount of excess write is %d\n", excess_write);
 	int get_presence_of_inode = get_bit(inode_bitmapptr, inum);
 	if (get_presence_of_inode == 0)
 		return -1;
@@ -257,6 +278,8 @@ int Server_Write(void *image, uint *inode_bitmapptr, int inum, char *buffer, int
 		// printf("Inode number of file to write to is %d\n", inum);
 		inode_t *inode_ptr_of_interest = inode_table + inum;
 		int file_block_to_write_to = offset_to_write_to / 4096;
+		if (file_block_to_write_to >= 30)
+			return -1;
 		// check if the file block is valid, if not we need to find a free block to write to.
 		uint *data_bitmapptr = (uint *)(image + (s->data_bitmap_addr * UFS_BLOCK_SIZE));
 		if (inode_ptr_of_interest->direct[file_block_to_write_to] == -1)
@@ -264,14 +287,18 @@ int Server_Write(void *image, uint *inode_bitmapptr, int inum, char *buffer, int
 			// printf("File block to write to is invalid\n");
 			// find a free data block to write to
 			int free_data_block_number = 0;
+			int is_free_data_blk_present = 0;
 			for (int i = 0; i < 32; i++)
 			{
 				if (get_bit(data_bitmapptr, i) == 0)
 				{
+					is_free_data_blk_present = 1;
 					free_data_block_number = i;
 					break;
 				}
 			}
+			if (!is_free_data_blk_present)
+				return -1;
 			// printf("Free data block number is %d\n", free_data_block_number);
 			inode_ptr_of_interest->direct[file_block_to_write_to] = s->data_region_addr + free_data_block_number;
 			set_bit(data_bitmapptr, free_data_block_number);
@@ -284,14 +311,18 @@ int Server_Write(void *image, uint *inode_bitmapptr, int inum, char *buffer, int
 				// printf("File block to write to is invalid\n");
 				// find a free data block to write to
 				int free_data_block_number = 0;
+				//int found_free = 0;
 				for (int i = 0; i < 32; i++)
 				{
 					if (get_bit(data_bitmapptr, i) == 0)
 					{
+						//found_free = -1;
 						free_data_block_number = i;
 						break;
 					}
 				}
+			//	if (!found_free)
+			//		return -1;
 				// printf("Free data block number for excess is %d\n", free_data_block_number);
 				inode_ptr_of_interest->direct[file_block_to_write_to + 1] = s->data_region_addr + free_data_block_number;
 				set_bit(data_bitmapptr, free_data_block_number);
@@ -372,8 +403,8 @@ int Server_Shutdown(super_t *s, int fd)
 	int rc = msync(s, sizeof(super_t), MS_SYNC);
 	assert(rc > -1);
 
-	close(fd);
-
+	//close(fd);
+	//exit(0);
 	return 0;
 }
 
@@ -500,7 +531,9 @@ int main(int argc, char *argv[])
 	// cleanup
 	free(recvMsg);
 	close(fd);
+	close(sd);
 	free(addr);
-
+	if (shutdown)
+		exit(0);
 	return 0;
 }

@@ -118,6 +118,7 @@ int MFS_Write(int inum, char *buffer, int offset, int nbytes)
     msg->inum = inum;
     memcpy(msg->buffer, buffer, nbytes);
     msg->offset = offset;
+    msg->nbytes = nbytes;
     int rc = send_api_message(client_connection, addrSnd, msg);
     free(msg);
     return rc;
@@ -130,7 +131,9 @@ int MFS_Read(int inum, char *buffer, int offset, int nbytes)
     msg->type = MFS_READ;
     msg->inum = inum;
     msg->offset = offset;
+    msg->nbytes = nbytes;
     int rc = send_api_message(client_connection, addrSnd, msg);
+    memcpy(buffer, msg->buffer,nbytes);
     return rc;
 }
 
