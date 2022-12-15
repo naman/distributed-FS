@@ -373,12 +373,13 @@ int Server_Shutdown(super_t *s, int fd)
 	assert(rc > -1);
 
 	close(fd);
+
 	return 0;
 }
 
 int Server_Init(char *filename)
 {
-	// open the file system image	
+	// open the file system image
 	int fd = open(filename, O_RDWR);
 	assert(fd > -1);
 
@@ -410,13 +411,17 @@ int main(int argc, char *argv[])
 	super_t *s = NULL;
 	uint *inode_bitmapptr = NULL;
 
+	__MFS_Message_t *recvMsg = (__MFS_Message_t *)malloc(sizeof(__MFS_Message_t));
+
+	int shutdown = 0;
 	// loop over reading requests and processing them
-	while (1)
+	while (shutdown != 1)
 	{
 		// printf("server:: waiting...\n");
+		// reset the message buffer
+		memset(recvMsg, 0, sizeof(__MFS_Message_t));
 
-		__MFS_Message_t *recvMsg = (__MFS_Message_t *)malloc(sizeof(__MFS_Message_t));
-
+		// read a message from the client
 		int rc = recv_message(sd, addr, recvMsg);
 		// assert(rc == 0);
 
@@ -486,21 +491,16 @@ int main(int argc, char *argv[])
 		{
 			recvMsg->status = Server_Shutdown(s, fd);
 			send_message(sd, addr, recvMsg);
+			shutdown = 1;
 			break;
 		}
 		}
-
-		free(recvMsg);
-		free(addr);
-
-		// check if the request is valid
-
-		// force change
-		// rc = msync(s, sizeof(super_t), MS_SYNC);
-		// assert(rc > -1);
-
-		close(fd);
 	}
+	
+	// cleanup
+	free(recvMsg);
+	close(fd);
+	free(addr);
 
 	return 0;
 }

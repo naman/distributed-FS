@@ -8,7 +8,7 @@ int client_connection = -1;
 
 int send_message(int sd, struct sockaddr_in *addr, __MFS_Message_t *msg)
 {
-    printf("sending type: %d, size: %d", type, size);
+    // printf("sending type: %d, size: %d", type, size);
     int rc = UDP_Write(sd, addr, (char *)msg, sizeof(__MFS_Message_t));
     if (rc < 0)
     {
