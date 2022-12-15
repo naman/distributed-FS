@@ -8,11 +8,11 @@ int client_connection = -1;
 
 int send_message(int sd, struct sockaddr_in *addr, __MFS_Message_t *msg)
 {
-    // printf("sending type: %d, size: %d", type, size);
+    printf("sending type: %d, size: %d", type, size);
     int rc = UDP_Write(sd, addr, (char *)msg, sizeof(__MFS_Message_t));
     if (rc < 0)
     {
-        printf("failed to send\n");
+        // printf("failed to send\n");
         exit(1);
     }
 
@@ -24,7 +24,7 @@ int recv_message(int sd, struct sockaddr_in *addr, __MFS_Message_t *msg)
     int rc = UDP_Read(sd, addr, (char *)msg, sizeof(__MFS_Message_t));
     if (rc < 0)
     {
-        printf("failed to receive\n");
+        // printf("failed to receive\n");
         return -1;
     }
 
@@ -59,7 +59,7 @@ int MFS_Init(char *hostname, int port)
 
     if (client_connection < 0)
     {
-        printf("client:: failed to open socket\n");
+        // printf("client:: failed to open socket\n");
         exit(1);
     }
 
@@ -68,10 +68,10 @@ int MFS_Init(char *hostname, int port)
     int rc = UDP_FillSockAddr(addrSnd, hostname, port);
     if (rc < 0)
     {
-        printf("client:: failed to fill address\n");
+        // printf("client:: failed to fill address\n");
         exit(1);
     }
-    printf("client:: initializing connection\n");
+    // printf("client:: initializing connection\n");
 
     __MFS_Message_t *msg = (__MFS_Message_t *)malloc(sizeof(__MFS_Message_t));
     msg->type = MFS_INIT;

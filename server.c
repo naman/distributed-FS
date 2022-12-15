@@ -64,7 +64,7 @@ int Server_Create(void *image, uint *inode_bitmapptr, int pinum, int type, char 
 	}
 	if (file_absent == 1)
 	{
-		printf("File not present, need to add it to the directory\n");
+		// printf("File not present, need to add it to the directory\n");
 		// find empty directory entry for file.
 		// int empty_dir_entry;
 
@@ -77,7 +77,7 @@ int Server_Create(void *image, uint *inode_bitmapptr, int pinum, int type, char 
 				break;
 			}
 		}
-		printf("Free inode number is %d\n", free_inode_number);
+		// printf("Free inode number is %d\n", free_inode_number);
 		set_bit(inode_bitmapptr, free_inode_number);
 		for (int i = 0; i < (UFS_BLOCK_SIZE / sizeof(dir_ent_t)); i++)
 		{
@@ -109,13 +109,13 @@ int Server_Create(void *image, uint *inode_bitmapptr, int pinum, int type, char 
 					break;
 				}
 			}
-			printf("Free data block number is %d\n", free_data_block_number);
+			// printf("Free data block number is %d\n", free_data_block_number);
 			inode_ptr_of_interest->direct[0] = s->data_region_addr + free_data_block_number;
 			set_bit(data_bitmapptr, free_data_block_number);
 			// set all directories to -1.
 			// inode_t *dir_inode = inode_table;
 			dir_ent_t *dir = image + (inode_ptr_of_interest->direct[0] * UFS_BLOCK_SIZE);
-			printf("Setting all directory contents to -1\n");
+			// printf("Setting all directory contents to -1\n");
 			for (int i = 0; i < (UFS_BLOCK_SIZE / sizeof(dir_ent_t)); i++)
 			{
 				dir[i].inum = -1;
@@ -169,8 +169,8 @@ int Server_Stat(void *image, uint *inode_bitmapptr, int pinum, MFS_Stat_t *m)
 	// inode_t* temp = s->data_region_addr+pinum;
 
 	// stat command.
-	printf("File size is %d\n", inode_table[pinum].size);
-	printf("File type is %d\n", inode_table[pinum].type);
+	// printf("File size is %d\n", inode_table[pinum].size);
+	// printf("File type is %d\n", inode_table[pinum].type);
 	m->type = inode_table[pinum].type;
 	m->size = inode_table[pinum].size;
 	return 0;
@@ -213,7 +213,7 @@ int Server_Unlink(void *image, uint *inode_bitmapptr, int pinum, char *name)
 				// file_absent= 0;
 				break;
 			}
-			printf("File at inode number %d is %s\n", dir[i].inum, dir[i].name);
+			// printf("File at inode number %d is %s\n", dir[i].inum, dir[i].name);
 		}
 		// printf("Value of inum is %d\n",dir[i].inum);
 	}
@@ -235,33 +235,33 @@ int Server_Write(void *image, uint *inode_bitmapptr, int inum, char *buffer, int
 		excess_write = (blk_offset + size_to_write) - 4096;
 		unaligned_write = 1;
 	}
-	printf("Amount of excess write is %d\n", excess_write);
+	// printf("Amount of excess write is %d\n", excess_write);
 	int get_presence_of_inode = get_bit(inode_bitmapptr, inum);
 	if (get_presence_of_inode == 0)
 		return -1;
 
 	if (size_to_write > 4096)
 	{
-		printf("Max write amount is 4096B\n");
+		// printf("Max write amount is 4096B\n");
 		return -1;
 	}
 	inode_t *inode_ptr_of_interest = inode_table + inum;
 	if (inode_ptr_of_interest->type == 0)
 	{
-		printf("Can't write to directory\n");
+		// printf("Can't write to directory\n");
 		return -1;
 	}
 	else
 	{
 		// check if offset and upto offset+size have valid entries.
-		printf("Inode number of file to write to is %d\n", inum);
+		// printf("Inode number of file to write to is %d\n", inum);
 		inode_t *inode_ptr_of_interest = inode_table + inum;
 		int file_block_to_write_to = offset_to_write_to / 4096;
 		// check if the file block is valid, if not we need to find a free block to write to.
 		uint *data_bitmapptr = (uint *)(image + (s->data_bitmap_addr * UFS_BLOCK_SIZE));
 		if (inode_ptr_of_interest->direct[file_block_to_write_to] == -1)
 		{
-			printf("File block to write to is invalid\n");
+			// printf("File block to write to is invalid\n");
 			// find a free data block to write to
 			int free_data_block_number = 0;
 			for (int i = 0; i < 32; i++)
@@ -272,7 +272,7 @@ int Server_Write(void *image, uint *inode_bitmapptr, int inum, char *buffer, int
 					break;
 				}
 			}
-			printf("Free data block number is %d\n", free_data_block_number);
+			// printf("Free data block number is %d\n", free_data_block_number);
 			inode_ptr_of_interest->direct[file_block_to_write_to] = s->data_region_addr + free_data_block_number;
 			set_bit(data_bitmapptr, free_data_block_number);
 		}
@@ -281,7 +281,7 @@ int Server_Write(void *image, uint *inode_bitmapptr, int inum, char *buffer, int
 		{
 			if (inode_ptr_of_interest->direct[file_block_to_write_to + 1] == -1)
 			{
-				printf("File block to write to is invalid\n");
+				// printf("File block to write to is invalid\n");
 				// find a free data block to write to
 				int free_data_block_number = 0;
 				for (int i = 0; i < 32; i++)
@@ -292,7 +292,7 @@ int Server_Write(void *image, uint *inode_bitmapptr, int inum, char *buffer, int
 						break;
 					}
 				}
-				printf("Free data block number for excess is %d\n", free_data_block_number);
+				// printf("Free data block number for excess is %d\n", free_data_block_number);
 				inode_ptr_of_interest->direct[file_block_to_write_to + 1] = s->data_region_addr + free_data_block_number;
 				set_bit(data_bitmapptr, free_data_block_number);
 			}
@@ -300,7 +300,7 @@ int Server_Write(void *image, uint *inode_bitmapptr, int inum, char *buffer, int
 			memcpy((char *)(image + (inode_ptr_of_interest->direct[file_block_to_write_to + 1] * UFS_BLOCK_SIZE)), buffer + (size_to_write - excess_write), excess_write);
 		}
 		inode_ptr_of_interest->size = max(inode_ptr_of_interest->size, (offset_to_write_to + size_to_write));
-		printf("Size of file is %d\n", inode_ptr_of_interest->size);
+		// printf("Size of file is %d\n", inode_ptr_of_interest->size);
 	}
 	int rc = msync(s, sizeof(super_t), MS_SYNC);
 	assert(rc > -1);
@@ -317,25 +317,25 @@ int Server_Read(void *image, uint *inode_bitmapptr, int inum, char *buffer, int 
 		excess_read = (blk_offset + size_to_read) - 4096;
 		unaligned_write = 1;
 	}
-	printf("Amount of excess read is %d\n", excess_read);
+	// printf("Amount of excess read is %d\n", excess_read);
 
 	super_t *s = (super_t *)image;
 	inode_t *inode_table = image + (s->inode_region_addr * UFS_BLOCK_SIZE);
-	printf("Amount of excess write is %d\n", excess_read);
+	// printf("Amount of excess write is %d\n", excess_read);
 	int get_presence_of_inode = get_bit(inode_bitmapptr, inum);
 	if (get_presence_of_inode == 0)
 		return -1;
 
 	if (size_to_read > 4096)
 	{
-		printf("Max read amount is 4096B\n");
+		// printf("Max read amount is 4096B\n");
 		return -1;
 	}
 
 	else
 	{
 		// check if offset and upto offset+size have valid entries.
-		printf("Inode number of file to write to is %d\n", inum);
+		// printf("Inode number of file to write to is %d\n", inum);
 		inode_t *inode_ptr_of_interest = inode_table + inum;
 		int file_block_to_read_from = offset_to_read_from / 4096;
 		// check if the file block is valid, if not we need to find a free block to write to.
@@ -343,13 +343,13 @@ int Server_Read(void *image, uint *inode_bitmapptr, int inum, char *buffer, int 
 
 		if (inode_ptr_of_interest->direct[file_block_to_read_from] == -1)
 		{
-			printf("File block to read is absent\n");
+			// printf("File block to read is absent\n");
 			return -1;
 		}
 
 		if ((offset_to_read_from + size_to_read) > inode_ptr_of_interest->size)
 		{
-			printf("Access out of bounds\n");
+			// printf("Access out of bounds\n");
 			return -1;
 		}
 		memcpy(buffer, (char *)(image + (inode_ptr_of_interest->direct[file_block_to_read_from] * UFS_BLOCK_SIZE) + blk_offset), (size_to_read - excess_read));
@@ -358,7 +358,7 @@ int Server_Read(void *image, uint *inode_bitmapptr, int inum, char *buffer, int 
 		{
 			if (inode_ptr_of_interest->direct[file_block_to_read_from + 1] == -1)
 			{
-				printf("File block to read is not fully present\n");
+				// printf("File block to read is not fully present\n");
 			}
 			// read from the start of the next block
 			memcpy((buffer + (size_to_read - excess_read)), (char *)(image + (inode_ptr_of_interest->direct[file_block_to_read_from + 1] * UFS_BLOCK_SIZE)), excess_read);
@@ -378,9 +378,7 @@ int Server_Shutdown(super_t *s, int fd)
 
 int Server_Init(char *filename)
 {
-	// open the file system image
-
-	printf("server:: filename is %s\n", filename);
+	// open the file system image	
 	int fd = open(filename, O_RDWR);
 	assert(fd > -1);
 
@@ -391,11 +389,11 @@ int main(int argc, char *argv[])
 {
 	if (argc != 3)
 	{
-		printf("Usage: ./server [portnum] [file-system-image]\n");
+		// printf("Usage: ./server [portnum] [file-system-image]\n");
 		exit(1);
 	}
 
-	printf("server:: start...\n");
+	// printf("server:: start...\n");
 
 	// convert argv[1] to an integer port number
 	int port = atoi(argv[1]);
@@ -415,21 +413,21 @@ int main(int argc, char *argv[])
 	// loop over reading requests and processing them
 	while (1)
 	{
-		printf("server:: waiting...\n");
+		// printf("server:: waiting...\n");
 
 		__MFS_Message_t *recvMsg = (__MFS_Message_t *)malloc(sizeof(__MFS_Message_t));
 
 		int rc = recv_message(sd, addr, recvMsg);
 		// assert(rc == 0);
 
-		printf("server:: got message of type %d\n", recvMsg->type);
+		// printf("server:: got message of type %d\n", recvMsg->type);
 		// switch on the type of the message
 
 		switch (recvMsg->type)
 		{
 		case MFS_INIT:
 		{
-			printf("server:: init request...\n");
+			// printf("server:: init request...\n");
 			fd = Server_Init(argv[2]);
 
 			struct stat sbuf;
@@ -493,6 +491,8 @@ int main(int argc, char *argv[])
 		}
 
 		free(recvMsg);
+		free(addr);
+
 		// check if the request is valid
 
 		// force change
