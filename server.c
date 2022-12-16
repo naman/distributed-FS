@@ -446,6 +446,21 @@ int main(int argc, char *argv[])
 
 	int shutdown = 0;
 	// loop over reading requests and processing them
+	
+	// printf("server:: init request...\n");
+	fd = Server_Init(argv[2]);
+	int rc;	
+	struct stat sbuf;
+	rc = fstat(fd, &sbuf);
+	assert(rc > -1);
+	
+	image_size = (int)sbuf.st_size;
+	image = mmap(NULL, image_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	assert(image != MAP_FAILED);
+	s = (super_t *)image;
+	inode_bitmapptr = (uint *)(image + (s->inode_bitmap_addr * UFS_BLOCK_SIZE));
+	
+	recvMsg->status = 0;
 	while (shutdown != 1)
 	{
 		// printf("server:: waiting...\n");
@@ -461,26 +476,6 @@ int main(int argc, char *argv[])
 
 		switch (recvMsg->type)
 		{
-		case MFS_INIT:
-		{
-			// printf("server:: init request...\n");
-			fd = Server_Init(argv[2]);
-
-			struct stat sbuf;
-			rc = fstat(fd, &sbuf);
-			assert(rc > -1);
-
-			image_size = (int)sbuf.st_size;
-			image = mmap(NULL, image_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-			assert(image != MAP_FAILED);
-			s = (super_t *)image;
-			inode_bitmapptr = (uint *)(image + (s->inode_bitmap_addr * UFS_BLOCK_SIZE));
-
-			recvMsg->status = 0;
-			send_message(sd, addr, recvMsg);
-
-			break;
-		}
 		case MFS_LOOKUP:
 		{
 			recvMsg->status = Server_Lookup(image, inode_bitmapptr, recvMsg->inum, recvMsg->name);

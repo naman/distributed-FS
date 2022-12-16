@@ -75,8 +75,8 @@ int MFS_Init(char *hostname, int port)
 
     __MFS_Message_t *msg = (__MFS_Message_t *)malloc(sizeof(__MFS_Message_t));
     msg->type = MFS_INIT;
-    rc = send_api_message(client_connection, addrSnd, msg);
-    assert(rc == 0);
+    //rc = send_api_message(client_connection, addrSnd, msg);
+    //assert(rc == 0);
     free(msg);
     return rc;
 }
