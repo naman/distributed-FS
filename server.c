@@ -468,7 +468,7 @@ int main(int argc, char *argv[])
 		memset(recvMsg, 0, sizeof(__MFS_Message_t));
 
 		// read a message from the client
-		int rc = recv_message(sd, addr, recvMsg);
+		recv_message(sd, addr, recvMsg);
 		// assert(rc == 0);
 
 		// printf("server:: got message of type %d\n", recvMsg->type);

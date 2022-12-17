@@ -134,6 +134,7 @@ int MFS_Read(int inum, char *buffer, int offset, int nbytes)
     msg->nbytes = nbytes;
     int rc = send_api_message(client_connection, addrSnd, msg);
     memcpy(buffer, msg->buffer,nbytes);
+    free(msg);
     return rc;
 }
 
@@ -146,6 +147,7 @@ int MFS_Creat(int pinum, int type, char *name)
     msg->file_type = type;
     strcpy(msg->name, name);
     int rc = send_api_message(client_connection, addrSnd, msg);
+    free(msg);
     return rc;
 }
 
@@ -157,6 +159,7 @@ int MFS_Unlink(int pinum, char *name)
     msg->inum = pinum;
     strcpy(msg->name, name);
     int rc = send_api_message(client_connection, addrSnd, msg);
+    free(msg);
     return rc;
 }
 
@@ -170,6 +173,7 @@ int MFS_Shutdown()
 
     // free the address
     free(addrSnd);
+    free(msg);
     // close the connection
     close(client_connection);
     return rc;
